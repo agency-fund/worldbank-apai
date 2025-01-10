@@ -94,11 +94,11 @@ doc_context <- function(docs, num_docs = NULL, strip_references = TRUE,
 #* @param token_limit:int The number of tokens to send to Claude
 #* @post /advice
 #* @serializer json
-function(query = "social psychology interventions",
-         query_prompt = "Derive a policy recommendation drawing from the documents in the provided content.",
-         system_prompt = "You are a World Bank task team leader (TTL).",
-	 num_docs = 10,
-	 token_limit = 2e5) {
+function(query = "social psychology interventions"
+         query_prompt = "Derive a policy recommendation drawing from the documents in the provided content."
+         system_prompt = "You are a World Bank task team leader (TTL)."
+         num_docs = 10
+         token_limit = 2e5) {
   num_docs <- as.numeric(num_docs)
   token_limit <- as.numeric(token_limit)
   docs <- fetch_wb_docs(query, num_results = num_docs)
@@ -116,8 +116,8 @@ function(query = "social psychology interventions",
   claude_res <- claude_req(context, query_prompt = query_prompt,
                            system_prompt = system_prompt)
   return(list(
-    #response = claude_res$response$content[[1]]$text[[1]],
-    response = claude_res,
+    response = claude_res$content[[1]]$text[[1]],
     sources = docs |> select(-document) |> head(num_docs)
   ))
 }
+
