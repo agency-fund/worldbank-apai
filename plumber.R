@@ -1,3 +1,6 @@
+install.packages("renv", dependencies = TRUE, ask = FALSE)
+renv::restore()
+
 library(plumber)
 library(stringr)
 library(httr2)
