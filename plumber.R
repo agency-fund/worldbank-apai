@@ -61,23 +61,24 @@ fetch_wb_docs <- function(query = "psychology interventions", num_results = 5) {
 
 doc_context <- function(docs, num_docs = NULL, strip_references = TRUE,
                         refs_thresh = 0.4) {
+  cur_docs <- docs
   if (!is.null(num_docs)) {
-    docs <<- docs[1:num_docs]
+    cur_docs <- cur_docs[1:num_docs]
   }
-  for (i in 1:length(docs)) {
-    ref_idx <- str_locate_all(docs[i], "References")[[1]]
+  for (i in 1:length(cur_docs)) {
+    ref_idx <- str_locate_all(cur_docs[i], "References")[[1]]
     
     if (nrow(ref_idx) > 0) {
       last_ref_idx <- ref_idx[nrow(ref_idx), 1]
-      ref_pct <- last_ref_idx / str_length(docs[i])
+      ref_pct <- last_ref_idx / str_length(cur_docs[i])
       if (ref_pct > refs_thresh) {
-        docs[i] <<- str_sub(docs[i], 1, last_ref_idx - 1)
+        cur_docs[i] <- str_sub(cur_docs[i], 1, last_ref_idx - 1)
       }
     }
   }
   str_c(
     "<document>",
-    str_c(docs, collapse = "</document><document>"),
+    str_c(cur_docs, collapse = "</document><document>"),
     "</document>"
   )
 }
@@ -87,23 +88,31 @@ doc_context <- function(docs, num_docs = NULL, strip_references = TRUE,
 
 #* Provide policy advice over World Bank documents.
 #* @param query:str The query for World Bank documents.
-#* @param num_docs:int The number of documents to retrieve.
 #* @param query_prompt:str Prompt for the retrieved documents.
 #* @param system_prompt:str Role of the responder.
-#* @get /advice
+#* @param num_docs:int The number of documents to retrieve.
+#* @param token_limit:int The number of tokens to send to Claude
+#* @post /advice
 #* @serializer json
-function(query = "social psychology interventions", num_docs = 10,
+function(query = "social psychology interventions",
          query_prompt = "Derive a policy recommendation drawing from the documents in the provided content.",
-         system_prompt = "You are a World Bank task team leader (TTL).") {
+         system_prompt = "You are a World Bank task team leader (TTL).",
+	 num_docs = 10,
+	 token_limit = 2e5) {
   num_docs <- as.numeric(num_docs)
+  token_limit <- as.numeric(token_limit)
   docs <- fetch_wb_docs(query, num_results = num_docs)
-  context <- doc_context(docs$document, num_docs)
+  context <- doc_context(docs = docs$document, num_docs = num_docs)
   token_count <- claude_req(context, endpoint = "messages/count_tokens")$input_tokens
-  while (token_count > 2e5) {
+
+  print(str_glue("{token_count} (token_count), {token_limit} (token_limit)"))
+  while (token_count > token_limit) {
+    print(str_glue("{token_count} tokens, num_docs: {num_docs}, reducing"))
     num_docs <- num_docs - 1
-    context <- doc_context(docs$document, num_docs)
+    context <- doc_context(docs = docs$document, num_docs = num_docs)
     token_count <- claude_req(context, endpoint = "messages/count_tokens")$input_tokens
   }
+
   claude_res <- claude_req(context, query_prompt = query_prompt,
                            system_prompt = system_prompt)
   return(list(
@@ -112,4 +121,3 @@ function(query = "social psychology interventions", num_docs = 10,
     sources = docs |> select(-document) |> head(num_docs)
   ))
 }
-
