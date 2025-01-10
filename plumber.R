@@ -42,7 +42,7 @@ claude_req <- function(content, endpoint = "messages", system_prompt=NULL,
   return(json_resp)
 }
 
-fetch_wb_docs <- function(query = "psychology interventions", num_results = 5) {
+fetch_wb_docs <- function(query = "Social Psychology Interventions", num_results = 5) {
   wb_data <- request("https://search.worldbank.org/api/v3/wds") |>
     req_url_query(rows = num_results, os = 0, qterm = query) |>
     req_perform() |>
@@ -87,18 +87,18 @@ doc_context <- function(docs, num_docs = NULL, strip_references = TRUE,
 #* @apiDescription Provide policy advice over World Bank documents.
 
 #* Provide policy advice over World Bank documents.
-#* @param query:str The query for World Bank documents.
-#* @param query_prompt:str Prompt for the retrieved documents.
-#* @param system_prompt:str Role of the responder.
-#* @param num_docs:int The number of documents to retrieve.
-#* @param token_limit:int The number of tokens to send to Claude
+#* @param query:string The query for World Bank documents.
+#* @param query_prompt:string Prompt for the retrieved documents.
+#* @param system_prompt:string Role of the responder.
+#* @param num_docs:integer The number of documents to retrieve.
+#* @param token_limit:integer The number of tokens to send to Claude
 #* @post /advice
 #* @serializer json
-function(query = "social psychology interventions"
-         query_prompt = "Derive a policy recommendation drawing from the documents in the provided content."
-         system_prompt = "You are a World Bank task team leader (TTL)."
-         num_docs = 10
-         token_limit = 2e5) {
+function(query = "Social Psychology Interventions",
+         query_prompt = "Create a policy recommendation based on the provided documents.",
+         system_prompt = "You are a Task Team Leader (TTL) from the World Bank.",
+         num_docs = 10,
+	 token_limit = 200000) {
   num_docs <- as.numeric(num_docs)
   token_limit <- as.numeric(token_limit)
   docs <- fetch_wb_docs(query, num_results = num_docs)
