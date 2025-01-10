@@ -62,7 +62,7 @@ fetch_wb_docs <- function(query = "psychology interventions", num_results = 5) {
 doc_context <- function(docs, num_docs = NULL, strip_references = TRUE,
                         refs_thresh = 0.4) {
   if (!is.null(num_docs)) {
-    docs <- docs[1:num_docs]
+    docs <<- docs[1:num_docs]
   }
   for (i in 1:length(docs)) {
     ref_idx <- str_locate_all(docs[i], "References")[[1]]
