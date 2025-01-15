@@ -95,7 +95,7 @@ doc_context <- function(docs, num_docs = NULL, strip_references = TRUE,
 #* @post /advice
 #* @serializer json
 function(query = "Social Psychology Interventions",
-         query_prompt = "Create a policy recommendation based on the provided documents.",
+         query_prompt = "Create a policy recommendation for {query} based on the provided documents.",
          system_prompt = "You are a Task Team Leader (TTL) from the World Bank.",
          num_docs = 10,
 	 token_limit = 200000) {
@@ -113,7 +113,7 @@ function(query = "Social Psychology Interventions",
     token_count <- claude_req(context, endpoint = "messages/count_tokens")$input_tokens
   }
 
-  claude_res <- claude_req(context, query_prompt = query_prompt,
+  claude_res <- claude_req(context, query_prompt = str_glue(query_prompt),
                            system_prompt = system_prompt)
   return(list(
     response = claude_res$content[[1]]$text[[1]],
