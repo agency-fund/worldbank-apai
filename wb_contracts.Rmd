@@ -1,0 +1,117 @@
+---
+title: "Worldbank Contract Analysis"
+output: html_notebook
+---
+
+We analyze the World Bank's [Contract Awards](https://financesone.worldbank.org/contract-awards-in-investment-project-financing-since-fy-2017-fy-2019/DS04691) data to do some market landscape analysis for our Launchpad strategy.
+
+```{r}
+library(tidyverse)
+contracts <- bind_rows(
+  #read_csv("contract_awards_in_investment_project_financing_since_fy_2017_fy_2019_03-02-2026.csv", show_col_types = FALSE),
+  read_csv("contract_awards_in_investment_project_financing_since_fy_2020_03-02-2026.csv", show_col_types = FALSE))
+```
+
+```{r}
+project_details <- readRDS("project_details.rds")
+
+contracts <- contracts |>
+  left_join(project_details, by = c("Project ID" = "project_id"))
+```
+
+We first take a look at the different `Project Global Practice` values - which maps to the specific cause area. The amounts below can be thought of as an upper bound for the total market size:
+
+```{r}
+contracts %>%
+  mutate(`Project Global Practice` = str_split(`Project Global Practice`, ";")) %>%
+  unnest_longer(`Project Global Practice`) %>%
+  group_by(`Project Global Practice`) %>%
+  summarise(
+    across(`Supplier Contract Amount (USD)`, sum, na.rm = TRUE),
+    across(`Fiscal Year`, list(min=min, max=max))) %>%
+  mutate(across(`Supplier Contract Amount (USD)`, ~ round(.x / 1e6, 2)),
+         `SC Amount / Year` = round(`Supplier Contract Amount (USD)` / (`Fiscal Year_max` - `Fiscal Year_min` + 1), 2)) %>%
+  rename(`Supplier Contract Amount (USD Millions)` = `Supplier Contract Amount (USD)`) %>%
+  select(`Project Global Practice`, contains("Amount")) %>%
+  arrange(desc(`Supplier Contract Amount (USD Millions)`)) %>%
+  DT::datatable(options = list(pageLength = 50))
+```
+
+It is likely that only `Agriculture`, `Health`, `Social Protection` and `Education` are relevant to our lighthouse orgs so we'll focus on these practice areas.
+
+We're seeing total closed annual contracts of 3.2B, 2.7B, 2.5B and 1.3B as our total market sizes in those areas, respectively. This isn't the amount dispersed per year for an organization, it's the value of contracts closed per year for projects of unknown length/duration. This can be thought of as the total contract size that's available in a given year that could be fulfilled by one of our LPOs.
+
+To further drill down, we're trying to size the current market of solutions from one country, scaling up to another, so we create an indicator for differences in the Borrower and Supplier Country (`Globally Sourced`.
+
+```{r}
+contracts %>%
+  filter(`Project Global Practice` %in% c("Agriculture", "Health", "Education", "Social Protection")) %>%
+  mutate(`Project Global Practice` = str_split(`Project Global Practice`, ";")) %>%
+  unnest_longer(`Project Global Practice`) %>%
+  group_by(`Region`,
+           `Borrower Country / Economy`, `Supplier Country / Economy`,
+           `Project Global Practice`) %>%
+  summarise(
+    across(`Supplier Contract Amount (USD)`, sum, na.rm = TRUE),
+    across(`Fiscal Year`, list(min=min, max=max), na.rm = TRUE),
+    .groups = "keep") %>%
+  mutate(across(`Supplier Contract Amount (USD)`, ~ round(.x / 1e6, 2)),
+         `SC Amount / Year` = round(`Supplier Contract Amount (USD)` / (`Fiscal Year_max` - `Fiscal Year_min` + 1), 2)) %>%
+  rename(`Supplier Contract Amount (USD Millions)` = `Supplier Contract Amount (USD)`) %>%
+  select(`Supplier Contract Amount (USD Millions)`, `SC Amount / Year`) %>%
+  arrange(desc(`Supplier Contract Amount (USD Millions)`)) %>%
+  mutate(`Globally Sourced` = `Borrower Country / Economy` != `Supplier Country / Economy`) %>%
+  arrange(desc(`Globally Sourced`), desc(`SC Amount / Year`)) %>%
+  DT::datatable(options=list(pageLength=50))
+```
+
+It appears that the suppliers are typically from other countries and mostly highly developed countries.
+
+```{r}
+contracts %>%
+  filter(`Project Global Practice` %in% c("Agriculture", "Health", "Education", "Social Protection")) %>%
+  mutate(`Project Global Practice` = str_split(`Project Global Practice`, ";")) %>%
+  unnest_longer(`Project Global Practice`) %>%
+  group_by(`Region`,
+           `Borrower Country / Economy`, `Supplier Country / Economy`,
+           `Project Global Practice`) %>%
+  summarise(
+    across(`Supplier Contract Amount (USD)`, sum, na.rm = TRUE),
+    across(`Fiscal Year`, list(min=min, max=max), na.rm = TRUE),
+    .groups = "keep") %>%
+  mutate(across(`Supplier Contract Amount (USD)`, ~ round(.x / 1e6, 2)),
+         `SC Amount / Year` = round(`Supplier Contract Amount (USD)` / (`Fiscal Year_max` - `Fiscal Year_min` + 1), 2)) %>%
+  rename(`Supplier Contract Amount (USD Millions)` = `Supplier Contract Amount (USD)`) %>%
+  select(`Supplier Contract Amount (USD Millions)`, `SC Amount / Year`) %>%
+  arrange(desc(`Supplier Contract Amount (USD Millions)`)) %>%
+  mutate(`Globally Sourced` = `Borrower Country / Economy` != `Supplier Country / Economy`) %>%
+  arrange(desc(`Globally Sourced`), desc(`SC Amount / Year`)) %>%
+  group_by(`Supplier Country / Economy`, `Globally Sourced`) %>%
+  summarise(across(`SC Amount / Year`, ~ round(sum(.x), 2))) %>%
+  arrange(desc(`Globally Sourced`), desc(`SC Amount / Year`)) %>%
+  DT::datatable(options=list(pageLength=50)) 
+```
+
+```{r}
+contracts %>%
+  filter(`Supplier Contract Amount (USD)` > 1e6) %>%
+  filter(`Project Global Practice` %in% c("Agriculture", "Health", "Education", "Social Protection")) %>%
+  mutate(`Project Global Practice` = str_split(`Project Global Practice`, ";")) %>%
+  unnest_longer(`Project Global Practice`) %>%
+  group_by(`Borrower Country / Economy`,
+           `Procurement Category`, `Procurement Method`,
+           `Project Global Practice`,
+           `Supplier Country / Economy`) %>%
+  summarise(across(`Supplier Contract Amount (USD)`, sum)) %>% DT::datatable()
+```
+
+```{r}
+contracts %>%
+  filter(`Supplier Contract Amount (USD)` > 1e6) %>%
+  filter(`Project Global Practice` %in% c("Agriculture", "Health", "Education", "Social Protection")) %>%
+  group_by(`Borrower Country / Economy`, `Supplier Country / Economy`, Supplier) %>%
+  summarise(across(`Supplier Contract Amount (USD)`, sum)) %>% View()
+  
+  
+```
+
