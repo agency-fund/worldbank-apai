@@ -188,7 +188,57 @@ contracts %>%
   filter(`Project Global Practice` %in% c("Agriculture", "Health", "Education", "Social Protection")) %>%
   group_by(`Borrower Country / Economy`, `Supplier Country / Economy`, Supplier) %>%
   summarise(across(`Supplier Contract Amount (USD)`, sum)) %>% View()
-  
-  
+
+
+```
+
+## Analysis by Project Status and Sector
+
+Using the enriched project metadata from the World Bank projects API, we can break down contract activity by project status and primary sector.
+
+### Contract Value by Project Status
+
+Active projects account for the vast majority of both contract volume and value.
+
+```{r}
+contracts %>%
+  group_by(status) %>%
+  summarise(
+    contracts = n(),
+    total_usd_bn = round(sum(`Supplier Contract Amount (USD)`, na.rm = TRUE) / 1e9, 2),
+    median_usd_k = round(median(`Supplier Contract Amount (USD)`, na.rm = TRUE) / 1e3, 1)
+  ) %>%
+  arrange(desc(total_usd_bn)) %>%
+  DT::datatable(options = list(pageLength = 10))
+```
+
+### Top Sectors by Contract Value
+
+Roads, energy, and health dominate by total value; irrigation and social protection lead by contract count.
+
+```{r}
+contracts %>%
+  filter(!is.na(sector1_name)) %>%
+  group_by(sector1_name) %>%
+  summarise(
+    contracts = n(),
+    total_usd_bn = round(sum(`Supplier Contract Amount (USD)`, na.rm = TRUE) / 1e9, 2),
+    median_usd_k = round(median(`Supplier Contract Amount (USD)`, na.rm = TRUE) / 1e3, 1)
+  ) %>%
+  arrange(desc(total_usd_bn)) %>%
+  DT::datatable(options = list(pageLength = 20))
+```
+
+### Active vs. Closed Contract Value by Sector
+
+```{r}
+contracts %>%
+  filter(!is.na(sector1_name), status %in% c("Active", "Closed")) %>%
+  group_by(status, sector1_name) %>%
+  summarise(total_usd_bn = round(sum(`Supplier Contract Amount (USD)`, na.rm = TRUE) / 1e9, 3),
+            .groups = "drop") %>%
+  pivot_wider(names_from = status, values_from = total_usd_bn, values_fill = 0) %>%
+  arrange(desc(Active)) %>%
+  DT::datatable(options = list(pageLength = 20))
 ```
 
