@@ -13,7 +13,84 @@ contracts <- bind_rows(
 ```
 
 ```{r}
-project_details <- readRDS("project_details.rds")
+library(httr)
+library(jsonlite)
+
+`%||%` <- function(x, y) if (!is.null(x) && length(x) > 0) x else y
+
+fetch_wb_project_details <- function(project_ids, batch_size = 50) {
+  unique_ids <- unique(na.omit(project_ids))
+  batches <- split(unique_ids, ceiling(seq_along(unique_ids) / batch_size))
+
+  map_dfr(seq_along(batches), function(i) {
+    batch <- batches[[i]]
+    message("Batch ", i, " / ", length(batches))
+    resp <- GET("https://search.worldbank.org/api/v2/projects",
+      query = list(id = paste(batch, collapse = "|"), format = "json", rows = length(batch)))
+    stop_for_status(resp)
+    projects <- fromJSON(content(resp, "text", encoding = "UTF-8"), flatten = TRUE)$projects
+    if (is.null(projects) || length(projects) == 0) return(tibble())
+
+    map_dfr(projects, function(p) {
+      tibble(
+        project_id              = p$id %||% NA_character_,
+        project_name            = p$project_name %||% NA_character_,
+        status                  = p$status %||% NA_character_,
+        status_display          = p$projectstatusdisplay %||% NA_character_,
+        closing_date            = p$closingdate %||% NA_character_,
+        p2a_updated_date        = p$p2a_updated_date %||% NA_character_,
+        region                  = p$regionname %||% NA_character_,
+        country                 = p$countryname %||% NA_character_,
+        country_code            = p$countrycode %||% NA_character_,
+        country_short           = p$countryshortname %||% NA_character_,
+        borrower                = p$borrower %||% NA_character_,
+        implementing_agency     = p$impagency %||% NA_character_,
+        team_lead               = p$teamleadname %||% NA_character_,
+        prod_line               = p$prodline %||% NA_character_,
+        prod_line_text          = p$prodlinetext %||% NA_character_,
+        product_line_type       = p$productlinetype %||% NA_character_,
+        lending_instr           = p$lendinginstr %||% NA_character_,
+        lending_instr_type      = p$lendinginstrtype %||% NA_character_,
+        env_assessment_cat      = p$envassesmentcategorycode %||% NA_character_,
+        supplement_flag         = p$supplementprojectflg %||% NA_character_,
+        p2a_flag                = p$p2a_flag %||% NA_character_,
+        source                  = p$source %||% NA_character_,
+        url                     = p$url %||% NA_character_,
+        curr_total_commitment   = as.numeric(p$curr_total_commitment %||% NA_real_),
+        curr_ibrd_commitment    = as.numeric(p$curr_ibrd_commitment %||% NA_real_),
+        curr_ida_commitment     = as.numeric(p$curr_ida_commitment %||% NA_real_),
+        total_amount            = as.numeric(p$totalamt %||% NA_real_),
+        total_commitment_amt    = as.numeric(p$totalcommamt %||% NA_real_),
+        grant_amt               = as.numeric(p$grantamt %||% NA_real_),
+        ida_commitment_amt      = as.numeric(p$idacommamt %||% NA_real_),
+        ibrd_commitment_amt     = as.numeric(p$ibrdcommamt %||% NA_real_),
+        lend_project_cost       = as.numeric(p$lendprojectcost %||% NA_real_),
+        sector_code             = p$sectorcode %||% NA_character_,
+        theme_code              = p$themecode %||% NA_character_,
+        mj_theme_code           = p$mjthemecode %||% NA_character_,
+        sector1_name            = p$sector1$Name %||% NA_character_,
+        sector1_pct             = as.numeric(p$sector1$Percent %||% NA_real_),
+        sector2_name            = p$sector2$Name %||% NA_character_,
+        sector2_pct             = as.numeric(p$sector2$Percent %||% NA_real_),
+        sector3_name            = p$sector3$Name %||% NA_character_,
+        sector3_pct             = as.numeric(p$sector3$Percent %||% NA_real_),
+        sector_namecode         = as.character(toJSON(p$sector_namecode %||% list())),
+        mjsector_namecode       = as.character(toJSON(p$mjsector_namecode %||% list())),
+        theme_namecode          = as.character(toJSON(p$theme_namecode %||% list())),
+        mjtheme_namecode        = as.character(toJSON(p$mjtheme_namecode %||% list())),
+        theme_list              = as.character(toJSON(p$theme_list %||% list())),
+        project_docs            = as.character(toJSON(p$projectdocs %||% list()))
+      )
+    })
+  })
+}
+
+if (!file.exists("project_details.rds")) {
+  project_details <- fetch_wb_project_details(contracts$`Project ID`)
+  saveRDS(project_details, "project_details.rds")
+} else {
+  project_details <- readRDS("project_details.rds")
+}
 
 contracts <- contracts |>
   left_join(project_details, by = c("Project ID" = "project_id"))
