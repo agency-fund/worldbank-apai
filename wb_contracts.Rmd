@@ -89,7 +89,7 @@ if (!file.exists("project_details.rds")) {
   project_details <- fetch_wb_project_details(contracts$`Project ID`)
   saveRDS(project_details, "project_details.rds")
 } else {
-  project_details <- readRDS("project_details.rds")
+  project_details <- readRDS("project_details.rds") |> distinct(project_id, .keep_all = TRUE)
 }
 
 contracts <- contracts |>
