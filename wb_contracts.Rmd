@@ -187,9 +187,8 @@ contracts %>%
   filter(`Supplier Contract Amount (USD)` > 1e6) %>%
   filter(`Project Global Practice` %in% c("Agriculture", "Health", "Education", "Social Protection")) %>%
   group_by(`Borrower Country / Economy`, `Supplier Country / Economy`, Supplier) %>%
-  summarise(across(`Supplier Contract Amount (USD)`, sum)) %>% View()
-
-
+  summarise(across(`Supplier Contract Amount (USD)`, sum)) %>%
+  DT::datatable(options = list(pageLength = 20))
 ```
 
 ## Analysis by Project Status and Sector
